@@ -3,11 +3,11 @@ from torch import nn
 
 
 class SDEABlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, maxdisp: int, stride=1):
+    def __init__(self, in_channels: int, out_channels: int, maxdisp: int):
         super().__init__()
         self.maxdisp = maxdisp
         self.g1 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False),
+            nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
@@ -18,7 +18,7 @@ class SDEABlock(nn.Module):
 
         self.channel_scaling = None
         if in_channels != out_channels:
-            self.channel_scaling = nn.Conv2d(in_channels, out_channels, stride, 1)
+            self.channel_scaling = nn.Conv2d(in_channels, out_channels, 1, 1)
 
     def forward(self, left, right):
         # two convolution layers G1
