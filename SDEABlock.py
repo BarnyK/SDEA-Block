@@ -35,8 +35,8 @@ class SDEABlock(nn.Module):
         right_g2 = self.g2(right_g1)
 
         # Weight calculation
-        left_weight = weight_matrix_calculation(left_g2, right_g2, self.maxdisp)
-        right_weight = weight_matrix_calculation(right_g2, left_g2, self.maxdisp)
+        left_weight = wmc(left_g2, right_g2, self.maxdisp)
+        right_weight = wmc(right_g2, left_g2, self.maxdisp)
 
         # Elementwise multiplication
         left_out = left_g1 * left_weight
@@ -66,5 +66,29 @@ def weight_matrix_calculation(left, right, maxdisp: int):
         diff = torch.abs(diff)
         v, _ = diff.min(2)
         weight_volume[:, 0, :, j] = v
+    weight_volume = 1 - torch.sigmoid(weight_volume)
+    return weight_volume
+
+
+# Faster in training
+@torch.jit.script
+def wmc(left, right, maxdisp: int):
+    weight_volume = torch.empty(
+        (
+            left.shape[0],
+            maxdisp * 2 + 1,
+            left.shape[2],
+            left.shape[3],
+        ),
+        device=left.device,dtype=left.dtype,
+    )
+
+    weight_volume[:, :, :, :] = (left-right)
+    for i in range(1,maxdisp+1):
+        weight_volume[:,2*i-1,:,:-i] =  left[:,0,:,:-i]-right[:,0,:,i:]
+        weight_volume[:,2*i,:,i:] = left[:,0,:,i:]-right[:,0,:,:-i]
+    
+    weight_volume = weight_volume.abs()
+    weight_volume,_ = weight_volume.min(1,keepdim=True)
     weight_volume = 1 - torch.sigmoid(weight_volume)
     return weight_volume
